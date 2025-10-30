@@ -1233,6 +1233,7 @@ MonoBehaviour:
   tilemap: {fileID: 1242883290}
   normalTileBase: {fileID: 11400000, guid: d01d6697cb7526b4b9f8547e660930af, type: 2}
   errorTileBase: {fileID: 11400000, guid: c8dc845c00bb16a4eb024e24f9c80d4f, type: 2}
+  enableDebug: 0
 --- !u!1 &1287122544
 GameObject:
   m_ObjectHideFlags: 0
@@ -3221,9 +3222,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62837091fda99d841988cd6620e8b5b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tilemap: {fileID: 1552311686}
+  tilemap: {fileID: 0}
   normalTileBase: {fileID: 11400000, guid: 71e3495fe755e7a4cadb95a7e8905573, type: 2}
   errorTileBase: {fileID: 11400000, guid: c8dc845c00bb16a4eb024e24f9c80d4f, type: 2}
+  enableDebug: 0
 --- !u!1 &1615770877
 GameObject:
   m_ObjectHideFlags: 0
@@ -3461,7 +3463,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32f2ccaf7e29db54fb6fa5c2081373a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Player: {fileID: 1834893745}
+  Player: {fileID: 0}
   moveSpeed: 8
   initialJumpForce: 10
   maxJumpHoldTime: 0.8
@@ -3475,6 +3477,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+  groundedRememberTime: 0.1
   leftWallCheck: {fileID: 1287122545}
   rightWallCheck: {fileID: 469839577}
   wallCheckDistance: 0.05
@@ -3486,7 +3489,7 @@ MonoBehaviour:
   topLayer:
     serializedVersion: 2
     m_Bits: 8
-  startDebug: 1
+  enableDebug: 0
   debugInterval: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

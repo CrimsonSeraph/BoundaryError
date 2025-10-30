@@ -3,124 +3,170 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+/// <summary>
+/// Tilemap 管理器，提供瓦片查询、替换、清除、区域操作接口。
+/// 支持世界坐标和格子坐标调用，可统一调试输出。
+/// </summary>
 public class TilemapManager : MonoBehaviour
 {
     [Header("瓦片地图对象")]
-    public Tilemap tilemap;
+    [SerializeField] private Tilemap tilemap;
 
-    [Header("瓦片信息")]
-    public TileBase normalTileBase;
-    public TileBase errorTileBase;
+    [Header("瓦片类型")]
+    [SerializeField] private TileBase normalTileBase;
+    [SerializeField] private TileBase errorTileBase;
 
-    // 初始化
-    void Start()
-    {
+    [Header("调试设置")]
+    [SerializeField] private bool enableDebug = false;
 
-    }
+    #region 公共接口
 
-    // 更新
-    void Update()
-    {
+    /// <summary>
+    /// 替换指定格子为错误瓦片
+    /// </summary>
+    public void ReplaceErrorTile(Vector3 worldPos) => ReplaceTile(WorldToCell(worldPos), errorTileBase);
 
-    }
+    public void ReplaceErrorTile(Vector3Int cellPos) => ReplaceTile(cellPos, errorTileBase);
 
-    // 错误替换
-    public void ReplaceErrorTiles(Vector3 worldPos)
-    {
-        ReplaceErrorTiles(WorldToCell(worldPos));
-    }
+    /// <summary>
+    /// 替换指定格子为正常瓦片
+    /// </summary>
+    public void ReplaceNormalTile(Vector3 worldPos) => ReplaceTile(WorldToCell(worldPos), normalTileBase);
 
-    public void ReplaceErrorTiles(Vector3Int cellpos)
-    {
-        SetTile(cellpos, errorTileBase);
-    }
+    public void ReplaceNormalTile(Vector3Int cellPos) => ReplaceTile(cellPos, normalTileBase);
 
-    // 正常替换
-    public void ReplaceNormalTiles(Vector3 worldPos)
-    {
-        ReplaceNormalTiles(WorldToCell(worldPos));
-    }
-
-    public void ReplaceNormalTiles(Vector3Int cellpos)
-    {
-        SetTile(cellpos, normalTileBase);
-    }
-
-    // 获取指定位置的Tile
-    public TileBase GetTile(Vector3 worldPos)
-    {
-        return GetTile(WorldToCell(worldPos));
-    }
+    /// <summary>
+    /// 获取指定位置的 Tile
+    /// </summary>
+    public TileBase GetTile(Vector3 worldPos) => GetTile(WorldToCell(worldPos));
 
     public TileBase GetTile(Vector3Int cellPos)
     {
+        if (!CheckTilemap()) return null;
         return tilemap.GetTile(cellPos);
     }
 
-    // 设置或替换指定位置的Tile
-    public void SetTile(Vector3 worldPos, TileBase newTile)
-    {
-        SetTile(WorldToCell(worldPos), newTile);
-    }
+    /// <summary>
+    /// 设置指定位置的 Tile
+    /// </summary>
+    public void SetTile(Vector3 worldPos, TileBase newTile) => SetTile(WorldToCell(worldPos), newTile);
 
     public void SetTile(Vector3Int cellPos, TileBase newTile)
     {
+        if (!CheckTilemap() || newTile == null) return;
         tilemap.SetTile(cellPos, newTile);
+        DebugTileChange(cellPos, newTile);
     }
 
-    // 清除指定位置的Tile
-    public void ClearTile(Vector3 worldPos)
-    {
-        ClearTile(WorldToCell(worldPos));
-    }
+    /// <summary>
+    /// 清除指定位置的 Tile
+    /// </summary>
+    public void ClearTile(Vector3 worldPos) => ClearTile(WorldToCell(worldPos));
 
     public void ClearTile(Vector3Int cellPos)
     {
+        if (!CheckTilemap()) return;
         tilemap.SetTile(cellPos, null);
+        DebugTileChange(cellPos, null);
     }
 
-    // 判断某个格子是否有Tile
-    public bool HasTile(Vector3 worldPos)
-    {
-        return HasTile(WorldToCell(worldPos));
-    }
+    /// <summary>
+    /// 判断指定位置是否有 Tile
+    /// </summary>
+    public bool HasTile(Vector3 worldPos) => HasTile(WorldToCell(worldPos));
 
     public bool HasTile(Vector3Int cellPos)
     {
+        if (!CheckTilemap()) return false;
         return tilemap.HasTile(cellPos);
     }
 
-    // 在区域内随机替换
+    /// <summary>
+    /// 在区域内随机替换瓦片
+    /// </summary>
+    /// <param name="worldStart">世界坐标起点</param>
+    /// <param name="worldEnd">世界坐标终点</param>
+    /// <param name="tilePool">随机瓦片池</param>
     public void ReplaceTilesInArea(Vector3 worldStart, Vector3 worldEnd, TileBase[] tilePool)
-    {
-        ReplaceTilesInArea(WorldToCell(worldStart), WorldToCell(worldEnd), tilePool);
-    }
+        => ReplaceTilesInArea(WorldToCell(worldStart), WorldToCell(worldEnd), tilePool);
 
     public void ReplaceTilesInArea(Vector3Int start, Vector3Int end, TileBase[] tilePool)
     {
-        for (int x = start.x; x <= end.x; x++)
+        if (!CheckTilemap() || tilePool == null || tilePool.Length == 0) return;
+
+        // 保证 start <= end
+        Vector3Int realStart = new Vector3Int(Mathf.Min(start.x, end.x), Mathf.Min(start.y, end.y), 0);
+        Vector3Int realEnd = new Vector3Int(Mathf.Max(start.x, end.x), Mathf.Max(start.y, end.y), 0);
+
+        for (int x = realStart.x; x <= realEnd.x; x++)
         {
-            for (int y = start.y; y <= end.y; y++)
+            for (int y = realStart.y; y <= realEnd.y; y++)
             {
                 Vector3Int pos = new Vector3Int(x, y, 0);
                 if (tilemap.HasTile(pos))
                 {
                     TileBase randomTile = tilePool[Random.Range(0, tilePool.Length)];
                     tilemap.SetTile(pos, randomTile);
+                    DebugTileChange(pos, randomTile);
                 }
             }
         }
     }
 
-    // 世界坐标转格子坐标
+    #endregion
+
+    #region 工具函数
+
+    /// <summary>
+    /// 世界坐标转格子坐标
+    /// </summary>
     public Vector3Int WorldToCell(Vector3 worldPos)
     {
+        if (!CheckTilemap()) return Vector3Int.zero;
         return tilemap.WorldToCell(worldPos);
     }
 
-    //格子坐标转世界坐标
+    /// <summary>
+    /// 格子坐标转世界坐标
+    /// </summary>
     public Vector3 CellToWorld(Vector3Int cellPos)
     {
+        if (!CheckTilemap()) return Vector3.zero;
         return tilemap.CellToWorld(cellPos);
     }
+
+    /// <summary>
+    /// 统一处理瓦片替换逻辑
+    /// </summary>
+    private void ReplaceTile(Vector3Int cellPos, TileBase tile)
+    {
+        if (!CheckTilemap() || tile == null) return;
+        tilemap.SetTile(cellPos, tile);
+        DebugTileChange(cellPos, tile);
+    }
+
+    /// <summary>
+    /// 检查 Tilemap 是否存在
+    /// </summary>
+    private bool CheckTilemap()
+    {
+        if (tilemap == null)
+        {
+            if (enableDebug) Debug.LogWarning("TilemapManager: tilemap 未设置！");
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 统一 Debug 输出瓦片变化
+    /// </summary>
+    private void DebugTileChange(Vector3Int cellPos, TileBase tile)
+    {
+        if (!enableDebug) return;
+        string tileName = tile == null ? "null" : tile.name;
+        Debug.Log($"TilemapManager: [{cellPos.x},{cellPos.y}] 设置为 {tileName}");
+    }
+
+    #endregion
 }

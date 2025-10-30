@@ -2,26 +2,37 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Player 移动管理器
+/// 功能：
+///— 支持左右移动、地面跳跃、空中跳跃、墙壁跳跃
+///— 支持跳跃按住加力、下落加速（fall multiplier）
+///— 支持墙壁缓速移动
+///— 支持调试输出（可通过 enableDebug 控制）
+/// </summary>
 public class PlayerMoveManager : MonoBehaviour
 {
-    [SerializeField] private Rigidbody2D Player;
+    [Header("组件引用")]
+    [SerializeField] private Rigidbody2D Player;           // 玩家刚体
+    private Collider2D playerCollider;                      // 玩家碰撞体
+    private float playerHalfWidth;
 
     [Header("移动设置")]
-    [SerializeField] private float moveSpeed = 8f;
-    [SerializeField] private float initialJumpForce = 10f;
-    [SerializeField] private float maxJumpHoldTime = 0.8f;
-    [SerializeField] private float jumpHoldForce = 15f;
-    [SerializeField] private float touchingWallSlowdownFactor = 0.5f;
-    [SerializeField] private int surplusAirJumps = 1;
-    [SerializeField] private float wallJumpCooldown = 0.2f;
-    [SerializeField] private float fallMultiplier = 2.5f;
+    [SerializeField] private float moveSpeed = 8f;         // 水平移动速度
+    [SerializeField] private float initialJumpForce = 10f; // 起跳初始向上力
+    [SerializeField] private float maxJumpHoldTime = 0.8f; // 按住跳跃最大持续时间
+    [SerializeField] private float jumpHoldForce = 15f;    // 持续跳跃力
+    [SerializeField] private float touchingWallSlowdownFactor = 0.5f; // 接触墙壁时水平减速
+    [SerializeField] private int surplusAirJumps = 1;      // 空中跳跃次数
+    [SerializeField] private float wallJumpCooldown = 0.2f; // 墙跳冷却
+    [SerializeField] private float fallMultiplier = 2.5f;  // 下落加速倍率
 
-    [Header("地砖检测")]
-    public Transform groundCheck;
+    [Header("地面检测")]
+    public Transform groundCheck;                           // 地面检测点
     [SerializeField] private float checkRadius = 0.2f;
     public LayerMask groundLayer;
     private float lastGroundedTime;
-    private float groundedRememberTime = 0.1f;
+    [SerializeField] private float groundedRememberTime = 0.1f; // 宽容地面记忆
 
     [Header("墙壁检测")]
     public Transform leftWallCheck;
@@ -34,11 +45,12 @@ public class PlayerMoveManager : MonoBehaviour
     [SerializeField] private float topCheckDistance = 0.5f;
     public LayerMask topLayer;
 
-    [Header("Debug")]
-    public bool startDebug = true;
-    private float lastDebugTime = 0f;
+    [Header("调试设置")]
+    [SerializeField] private bool enableDebug = false;
     [SerializeField] private float debugInterval = 1f;
+    private float lastDebugTime = 0f;
 
+    // 内部状态
     private float horizontalInput;
     private bool isGrounded;
     private bool isJumping;
@@ -47,56 +59,51 @@ public class PlayerMoveManager : MonoBehaviour
     private bool isTouchingLeftWall;
     private bool isTouchingRightWall;
     private bool isTouchingWall;
-    private Collider2D playerCollider;
-    private float playerHalfWidth;
     private bool isTouchingTop;
     private float lastWallJumpTime;
-    private bool canJump;
-    private bool canGroundJump;
-    private bool canWallJump;
-    private bool canAirJump;
+    private bool canJump, canGroundJump, canAirJump, canWallJump;
 
     // 初始化
     void Start()
     {
         Player = GetComponent<Rigidbody2D>();
-
         playerCollider = GetComponent<Collider2D>();
-        if (playerCollider != null)
-        {
-            playerHalfWidth = playerCollider.bounds.extents.x;
-        }
-        else
-        {
-            playerHalfWidth = 0.5f;
-        }
+
+        playerHalfWidth = playerCollider != null ? playerCollider.bounds.extents.x : 0.5f;
 
         SetupWallCheckPositions();
     }
 
-    // 更新
+    // 每帧更新：获取输入、调试输出
     void Update()
     {
         GetInput();
         DebugAll();
     }
 
-    // 物理更新
+    // 固定更新：物理运动、检测
     void FixedUpdate()
     {
         CheckGrounded();
         CheckWalls();
         CheckTop();
+
         HandleMovement();
         HandleJumpInput();
         HandleJumpPhysics();
+
+        // 下落加速
         if (Player.velocity.y < 0)
         {
             Player.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;
         }
     }
 
-    // 设置墙壁检测位置
+    #region 核心功能
+
+    /// <summary>
+    /// 设置墙壁检测位置
+    /// </summary>
     private void SetupWallCheckPositions()
     {
         if (leftWallCheck != null)
@@ -112,7 +119,9 @@ public class PlayerMoveManager : MonoBehaviour
         }
     }
 
-    // 处理按键输入
+    /// <summary>
+    /// 获取玩家输入并计算可跳状态
+    /// </summary>
     private void GetInput()
     {
         horizontalInput = Input.GetAxisRaw("Horizontal");
@@ -129,7 +138,9 @@ public class PlayerMoveManager : MonoBehaviour
         }
     }
 
-    // 移动管理
+    /// <summary>
+    /// 左右移动控制，墙壁接触减速
+    /// </summary>
     private void HandleMovement()
     {
         if (!isGrounded && ((isTouchingLeftWall && horizontalInput < 0) || (isTouchingRightWall && horizontalInput > 0)))
@@ -138,12 +149,13 @@ public class PlayerMoveManager : MonoBehaviour
         }
         else
         {
-            Vector2 velocity = new Vector2(horizontalInput * moveSpeed, Player.velocity.y);
-            Player.velocity = velocity;
+            Player.velocity = new Vector2(horizontalInput * moveSpeed, Player.velocity.y);
         }
     }
 
-    // 处理跳跃指令输入
+    /// <summary>
+    /// 跳跃输入处理（按住加力）
+    /// </summary>
     private void HandleJumpInput()
     {
         if (jumpRequested)
@@ -173,27 +185,32 @@ public class PlayerMoveManager : MonoBehaviour
         }
     }
 
-    // 跳跃物理事件
-    private void HandleJumpPhysics()
-    {
-    }
+    /// <summary>
+    /// 空方法，保留扩展物理处理（可加缓冲、碰撞反弹等）
+    /// </summary>
+    private void HandleJumpPhysics() { }
 
-    // 开始跳跃
+    /// <summary>
+    /// 执行跳跃：地面跳、墙壁跳、空中跳
+    /// </summary>
     private void StartJump()
     {
         if (isTouchingWall && !isGrounded)
         {
+            // 墙跳
             Vector2 jumpDir = isTouchingLeftWall ? Vector2.right : Vector2.left;
             Player.velocity = new Vector2(jumpDir.x * moveSpeed, initialJumpForce);
             lastWallJumpTime = Time.time;
         }
         else if (!isGrounded && surplusAirJumps > 0)
         {
+            // 空中跳
             Player.velocity = new Vector2(Player.velocity.x, initialJumpForce);
             surplusAirJumps--;
         }
         else if (isGrounded)
         {
+            // 地面跳
             Player.velocity = new Vector2(Player.velocity.x, initialJumpForce);
         }
 
@@ -201,8 +218,13 @@ public class PlayerMoveManager : MonoBehaviour
         jumpTimeCounter = maxJumpHoldTime;
     }
 
+    #endregion
 
-    // 检测是否在地面
+    #region 检测逻辑
+
+    /// <summary>
+    /// 地面检测（OverlapBox）
+    /// </summary>
     private void CheckGrounded()
     {
         float width = playerCollider.bounds.size.x * 0.9f;
@@ -215,13 +237,15 @@ public class PlayerMoveManager : MonoBehaviour
         {
             surplusAirJumps = 1;
             lastGroundedTime = Time.time;
+
             if (Mathf.Abs(Player.velocity.y) < 0.1f)
                 isJumping = false;
         }
     }
 
-
-    // 检测墙壁接触
+    /// <summary>
+    /// 墙壁检测（OverlapBox）
+    /// </summary>
     private void CheckWalls()
     {
         float height = playerCollider.bounds.size.y * 0.9f;
@@ -234,36 +258,36 @@ public class PlayerMoveManager : MonoBehaviour
         isTouchingWall = isTouchingLeftWall || isTouchingRightWall;
     }
 
-    // 检测是否碰头
+    /// <summary>
+    /// 头顶碰撞检测
+    /// </summary>
     private void CheckTop()
     {
-        if (isJumping)
-        {
-            Vector2 upDirection = Vector2.up;
-            RaycastHit2D topHit = Physics2D.Raycast(topCheck.position, upDirection, topCheckDistance, topLayer);
-            isTouchingTop = topHit.collider != null;
-        }
+        if (!isJumping) return;
+
+        RaycastHit2D topHit = Physics2D.Raycast(topCheck.position, Vector2.up, topCheckDistance, topLayer);
+        isTouchingTop = topHit.collider != null;
     }
 
-    // Debug信息
+    #endregion
+
+    #region 调试
+
+    /// <summary>
+    /// 调试输出玩家状态，可通过 enableDebug 开关控制，输出间隔 debugInterval
+    /// </summary>
     private void DebugAll()
     {
-        if (!startDebug) return;
-        if (Time.time - lastDebugTime >= debugInterval)
-        {
-            lastDebugTime = Time.time;
+        if (!enableDebug) return;
+        if (Time.time - lastDebugTime < debugInterval) return;
 
-            Debug.Log("是否在地面: " + isGrounded);
-            Debug.Log("左侧是否接触墙壁: " + isTouchingLeftWall);
-            Debug.Log("右侧是否接触墙壁: " + isTouchingRightWall);
-            Debug.Log("玩家速度: " + Player.velocity.x + Player.velocity.y);
-            Debug.Log("是否在跳跃: " + isJumping);
-            Debug.Log("是否可以跳跃:" + canJump);
-            Debug.Log("是否可以地面跳跃:" + canGroundJump);
-            Debug.Log("是否可以墙壁跳跃:" + canWallJump);
-            Debug.Log("是否可以空中跳跃:" + canAirJump);
-            Debug.Log("剩余空中跳跃次数:" + surplusAirJumps);
-            Debug.Log("是否碰头:" + isTouchingTop);
-        }
+        lastDebugTime = Time.time;
+
+        Debug.Log($"地面: {isGrounded}, 左墙: {isTouchingLeftWall}, 右墙: {isTouchingRightWall}");
+        Debug.Log($"速度: {Player.velocity}, 跳跃中: {isJumping}, 碰头: {isTouchingTop}");
+        Debug.Log($"可跳: {canJump}, 地面跳: {canGroundJump}, 墙跳: {canWallJump}, 空中跳: {canAirJump}");
+        Debug.Log($"剩余空中跳跃次数: {surplusAirJumps}");
     }
+
+    #endregion
 }
