@@ -1277,6 +1277,7 @@ GameObject:
   - component: {fileID: 1552311686}
   - component: {fileID: 1552311685}
   - component: {fileID: 1552311687}
+  - component: {fileID: 1552311688}
   m_Layer: 0
   m_Name: NormalBackground
   m_TagString: Untagged
@@ -3222,10 +3223,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62837091fda99d841988cd6620e8b5b7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tilemap: {fileID: 0}
+  tilemap: {fileID: 1552311686}
   normalTileBase: {fileID: 11400000, guid: 71e3495fe755e7a4cadb95a7e8905573, type: 2}
   errorTileBase: {fileID: 11400000, guid: c8dc845c00bb16a4eb024e24f9c80d4f, type: 2}
   enableDebug: 0
+--- !u!114 &1552311688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1552311683}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 743310000af7ac142837fd5ce96de694, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startTileX: -9
+  startTileY: -5
+  endTileX: 9
+  endTileY: 5
+  pause: 2
+  isRunning: 1
+  replaceChance: 0.1
 --- !u!1 &1615770877
 GameObject:
   m_ObjectHideFlags: 0

@@ -63,7 +63,6 @@ public class PlayerMoveManager : MonoBehaviour
     private float lastWallJumpTime;
     private bool canJump, canGroundJump, canAirJump, canWallJump;
 
-    // 初始化
     void Start()
     {
         Player = GetComponent<Rigidbody2D>();
@@ -74,14 +73,12 @@ public class PlayerMoveManager : MonoBehaviour
         SetupWallCheckPositions();
     }
 
-    // 每帧更新：获取输入、调试输出
     void Update()
     {
         GetInput();
         DebugAll();
     }
 
-    // 固定更新：物理运动、检测
     void FixedUpdate()
     {
         CheckGrounded();
@@ -92,7 +89,6 @@ public class PlayerMoveManager : MonoBehaviour
         HandleJumpInput();
         HandleJumpPhysics();
 
-        // 下落加速
         if (Player.velocity.y < 0)
         {
             Player.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;

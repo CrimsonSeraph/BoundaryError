@@ -82,19 +82,36 @@ public class TilemapManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 在区域内随机替换错误瓦片
+    /// </summary>
+    public void ReplaceErrorTilesInArea(Vector3 worldStart, Vector3 worldEnd, float replaceChance)
+        => ReplaceTilesInArea(worldStart, worldEnd, errorTileBase, replaceChance);
+
+    public void ReplaceErrorTilesInArea(Vector3Int start, Vector3Int end, float replaceChance)
+        => ReplaceTilesInArea(start, end, errorTileBase, replaceChance);
+
+    /// <summary>
+    /// 在区域内随机替换正常瓦片
+    /// </summary>
+    public void ReplaceNormalTilesInArea(Vector3 worldStart, Vector3 worldEnd, float replaceChance)
+        => ReplaceTilesInArea(worldStart, worldEnd, normalTileBase, replaceChance);
+
+    public void ReplaceNormalTilesInArea(Vector3Int start, Vector3Int end, float replaceChance)
+        => ReplaceTilesInArea(start, end, normalTileBase, replaceChance);
+
+    /// <summary>
     /// 在区域内随机替换瓦片
     /// </summary>
     /// <param name="worldStart">世界坐标起点</param>
     /// <param name="worldEnd">世界坐标终点</param>
     /// <param name="tilePool">随机瓦片池</param>
-    public void ReplaceTilesInArea(Vector3 worldStart, Vector3 worldEnd, TileBase[] tilePool)
-        => ReplaceTilesInArea(WorldToCell(worldStart), WorldToCell(worldEnd), tilePool);
+    public void ReplaceTilesInArea(Vector3 worldStart, Vector3 worldEnd, TileBase targetTile, float replaceChance)
+        => ReplaceTilesInArea(WorldToCell(worldStart), WorldToCell(worldEnd), targetTile, replaceChance);
 
-    public void ReplaceTilesInArea(Vector3Int start, Vector3Int end, TileBase[] tilePool)
+    public void ReplaceTilesInArea(Vector3Int start, Vector3Int end, TileBase targetTile, float replaceChance)
     {
-        if (!CheckTilemap() || tilePool == null || tilePool.Length == 0) return;
+        if (!CheckTilemap() || targetTile == null) return;
 
-        // 保证 start <= end
         Vector3Int realStart = new Vector3Int(Mathf.Min(start.x, end.x), Mathf.Min(start.y, end.y), 0);
         Vector3Int realEnd = new Vector3Int(Mathf.Max(start.x, end.x), Mathf.Max(start.y, end.y), 0);
 
@@ -105,9 +122,11 @@ public class TilemapManager : MonoBehaviour
                 Vector3Int pos = new Vector3Int(x, y, 0);
                 if (tilemap.HasTile(pos))
                 {
-                    TileBase randomTile = tilePool[Random.Range(0, tilePool.Length)];
-                    tilemap.SetTile(pos, randomTile);
-                    DebugTileChange(pos, randomTile);
+                    if (Random.value < replaceChance)
+                    {
+                        tilemap.SetTile(pos, targetTile);
+                        DebugTileChange(pos, targetTile);
+                    }
                 }
             }
         }
@@ -136,7 +155,7 @@ public class TilemapManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 统一处理瓦片替换逻辑
+    /// 瓦片替换
     /// </summary>
     private void ReplaceTile(Vector3Int cellPos, TileBase tile)
     {
@@ -159,7 +178,7 @@ public class TilemapManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 统一 Debug 输出瓦片变化
+    /// 输出瓦片变化
     /// </summary>
     private void DebugTileChange(Vector3Int cellPos, TileBase tile)
     {
