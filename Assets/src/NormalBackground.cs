@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using UnityEditor.Experimental.Licensing;
 using UnityEngine;
 
 public class NormalBackground : MonoBehaviour
@@ -10,11 +11,14 @@ public class NormalBackground : MonoBehaviour
     [SerializeField] private int endTileX = 9;
     [SerializeField] private int endTileY = 5;
     [Header("停顿时间")]
-    [SerializeField] private float pause = 2f;
+    [SerializeField] private float replacePause = 0.5f;
+    [SerializeField] private float restorePause = 0.5f;
     [Header("是否开启随机替换")]
     [SerializeField] private bool isRunning = true;
-    [Header("随机替换概率参数")]
-    [SerializeField] private float replaceChance = 0.1f;
+    [Header("随机替换参数")]
+    [SerializeField] private float replaceAre = 0.3f;
+
+    private bool enableReplace = true;
 
     void Start()
     {
@@ -27,22 +31,42 @@ public class NormalBackground : MonoBehaviour
     /// </summary>
     IEnumerator RandomReplaceLoop()
     {
+        Vector3Int start = new Vector3Int(startTileX, startTileY, 0);
+        Vector3Int end = new Vector3Int(endTileX, endTileY, 0);
+
         while (isRunning)
         {
-            if (tilemapManager != null)
+            if (tilemapManager == null) yield break;
+
+            int errorTilesNumber = tilemapManager.GetErrorTilesNumber();
+            int selectedTilesNumber = tilemapManager.GetSelectedTilesNumber();
+            float errorRatio = (float)errorTilesNumber / selectedTilesNumber;
+
+            if (errorTilesNumber == 0 && !enableReplace)
             {
-                Vector3Int start = new Vector3Int(startTileX, startTileY, 0);
-                Vector3Int end = new Vector3Int(endTileX, endTileY, 0);
+                enableReplace = true;
+                continue;
+            }
 
-                tilemapManager.ReplaceErrorTilesInArea(start, end, replaceChance);
-                yield return new WaitForSeconds(pause);
-
-                tilemapManager.ReplaceNormalTilesInArea(start, end, replaceChance);
-                yield return new WaitForSeconds(pause);
+            if (errorRatio < 0.2f && enableReplace)
+            {
+                tilemapManager.ReplaceErrorTilesInArea(start, end, replaceAre);
+                yield return new WaitForSeconds(replacePause);
             }
             else
             {
-                yield break;
+                enableReplace = false;
+
+                if (Random.value < 0.5f)
+                {
+                    tilemapManager.ReplaceErrorTilesInArea(start, end, replaceAre);
+                    yield return new WaitForSeconds(replacePause);
+                }
+                else
+                {
+                    tilemapManager.RestoreTilesInArea();
+                    yield return new WaitForSeconds(restorePause);
+                }
             }
         }
     }
